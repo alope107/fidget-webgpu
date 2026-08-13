@@ -2,6 +2,7 @@ import { configFromQueryParams } from "./config.js";
 import { computeShaderCode } from "./computeShaders.js";
 import { renderShaderCode } from "./renderShaders.js";
 import dispatchCount from "./workgroups.js";
+import toClipSpace from "./scale.js";
 
 const DEBUG_OUT = false;
 const DEBUG_OUT_INTERVAL = 10000;
@@ -355,12 +356,15 @@ async function main(config) {
     let translate = [0, 0];
     let zoom = 1.;
 
-    canvas.addEventListener("pointermove", () => {
-        // Rescale to -1 to +1, the scaling used by the compute/vertex shaders
-        pointerX = (2 * event.clientX / canvas.width) - 1;
-        pointerY = -((2 * event.clientY / canvas.height) - 1);
+    const updatePointerPosition = (event) => {
+        [pointerX, pointerY] = toClipSpace([event.clientX, event.clientY],[canvas.width, canvas.height]);
+    };
+
+    canvas.addEventListener("pointermove", updatePointerPosition);
+    canvas.addEventListener('pointerdown', (event) => { 
+        updatePointerPosition(event);
+        pointerHeld = 1; 
     });
-    canvas.addEventListener('pointerdown', () => { pointerHeld = 1; });
     canvas.addEventListener('pointerup', () => { pointerHeld = 0; });
     canvas.addEventListener('pointeleave', () => { pointerHeld = 0; });
     canvas.addEventListener('pointercancel', () => { pointerHeld = 0; });
