@@ -20,11 +20,12 @@ struct VertexOutput {
 ) -> VertexOutput {
     _ = uniforms; // dummy so uniforms don't get thrown away
 
+    let scale = 1.;
     // TODO: Maybe make these offsets uniform? Or variable per boid?
     let cornerOffsets = array<vec2f, 3>(
-        vec2f(.03, 0),
-        vec2f(0, -.01),
-        vec2f(0, .01), 
+        vec2f(.03, 0)*scale,
+        vec2f(0, -.01)*scale,
+        vec2f(0, .01)*scale, 
     );
 
     // Definitely faster/better ways to do this, but probably not bottleneck rn
@@ -34,9 +35,14 @@ struct VertexOutput {
         vec2f(length(cornerOffsets[vertexIdx]) * cos(newAngle),
               length(cornerOffsets[vertexIdx]) * sin(newAngle));
 
-    let newPos = boids[boidIdx].position + rotated;
+    
+
+    let newPos = (boids[boidIdx].position + rotated);
 
     let transformedPosition = (newPos + uniforms.translate) * uniforms.zoom;
+
+    
+
 
     return VertexOutput(
         vec4f(transformedPosition, 0., 1.),

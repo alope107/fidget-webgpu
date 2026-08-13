@@ -11,7 +11,7 @@ async function main(config) {
     console.log("hup");
     // Check webGPU support and get device
     const adapter = await navigator.gpu?.requestAdapter({
-        // powerPreference: 'high-performance', 
+        powerPreference: 'high-performance', 
         //requiredFeatures: ['timestamp-query'], // will re-enable later for profiling
     });
     const device = await adapter?.requestDevice();
@@ -327,7 +327,7 @@ async function main(config) {
         renderPass.end();
 
         
-        if(DEBUG_OUT) encoder.copyBufferToBuffer(boidBuffer, 0, debugBoidBuffer, 0, boidBuffer.size);
+        if(DEBUG_OUT) {encoder.copyBufferToBuffer(boidBuffer, 0, debugBoidBuffer, 0, boidBuffer.size);}
 
         const commandBuffer = encoder.finish();
 
@@ -390,7 +390,7 @@ async function main(config) {
         
 
 
-        computeAndRender();
+        await computeAndRender();
 
         if (DEBUG_OUT) {
             
