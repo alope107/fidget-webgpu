@@ -1,8 +1,10 @@
+let rand = (min, max) => Math.random() * (max-min) + min; 
+
 const colorFnMap = {
     confetti: () => [Math.random(), Math.random(), Math.random(), 1.0],
-    blue: () => [0, 0, 1., 1.0],
-    red: () => [1., 0, 0, 1.0],
-    green: () => [0, 1., 0, 1.0],
+    blue: () => [0, .2, rand(.5, 1), 1.0],
+    red: () => [rand(.5, 1.), 0, 0, 1.0],
+    green: () => [0, rand(.3, .8), 0, 1.0],
     grey: () => {const v = Math.random(); return [v, v, v, 1.0]}
 };
 
