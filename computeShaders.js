@@ -24,6 +24,7 @@ override pointerPush : f32;
 override maxSpeed : f32;
 override bucketRows : u32;
 override bucketCols : u32;
+override gel : f32;
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var<storage, read_write> boids : array<Boid>;
@@ -49,6 +50,7 @@ override bucketCols : u32;
     _ = maxSpeed;
     _ = bucketRows;
     _ = bucketCols;
+    _ = gel;
     let id = global_invocation_index(workgroup_id,
                         local_invocation_index,
                         num_workgroups,
@@ -90,6 +92,7 @@ fn bucketIdx(position : vec2f) -> u32 {
     _ = maxSpeed;
     _ = bucketRows;
     _ = bucketCols;
+    _ = gel;
     var offset=0u;
     for(var i = 0u; i < arrayLength(&buckets); i++) {
         buckets[i].offset = offset;
@@ -118,6 +121,7 @@ fn bucketIdx(position : vec2f) -> u32 {
     _ = maxSpeed;
     _ = bucketRows;
     _ = bucketCols;
+    _ = gel;
     let id = global_invocation_index(workgroup_id,
                             local_invocation_index,
                             num_workgroups,
@@ -158,6 +162,7 @@ fn bucketIdx(position : vec2f) -> u32 {
     _ = maxSpeed;
     _ = bucketRows;
     _ = bucketCols;
+    _ = gel;    
     let id = global_invocation_index(workgroup_id,
                             local_invocation_index,
                             num_workgroups,
@@ -262,8 +267,10 @@ fn bucketIdx(position : vec2f) -> u32 {
     if (curSpeed < minSpeed) {newVel *= speedUp;}
     if(curSpeed > maxSpeed) {newVel /= curSpeed; }
 
-    boids[myIdx].velocity = newVel;
-    boids[myIdx].position = me.position + newVel;
+    const tidi = .96;
+
+    boids[myIdx].velocity = newVel * gel;
+    boids[myIdx].position = me.position + newVel * gel;
 
     // Wrap (candidate for separate function? If so, pass boids pointer)
     // TODO: Selects!
