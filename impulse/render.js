@@ -27,8 +27,9 @@ struct VertexOutput {
         vec2f(rect.bottomRight.x, rect.topLeft.y),
         rect.bottomRight
     );
+    let transformedPosition = uniforms.cameraMat * vec3f(points[vertexIdx], 1);
     return VertexOutput(
-        vec4f(points[vertexIdx], 1, 1),
+        vec4f(transformedPosition, 1),
         select(vec4f(1, 1, 0, 1), vec4f(1, 0, 0, 1), rect.overlaps > 0)
     );
 }
@@ -50,7 +51,6 @@ const UNIT_CIRCLE_POINTS = ${unitCirclePointsWGSL(polysPerCircle)}
 
     return VertexOutput(
         vec4f(transformedPosition, 1.),
-        //vec4f((circle.center + offset)* scale, 0, 1.),
         select(baseColor, vec4f(1, 0, 0, 1), circle.overlaps > 0)
     );
 }

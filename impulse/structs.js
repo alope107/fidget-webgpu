@@ -93,20 +93,26 @@ export const rectStruct = (() => {
     };
     // Eventually move to random density / restitution
     const randomJSRects = (count, minWidth, maxWidth, maxVelComp, density, restitution) => {
+        // TODO: better
+        const scale = .001;
+        const wall = 1/scale;
         const rects = [];
+
         for(let i = 0; i < count; i++) {
-            const topLeft = [randClip(), randClip()];
+            const topLeft = [randRange(-wall, wall), randRange(-wall, wall)];
             const w = randRange(minWidth, maxWidth), h = randRange(minWidth, maxWidth);
-            const velocity = [randRange(-maxVelComp, maxVelComp), randRange(-maxVelComp, maxVelComp)];
+            const bottomRight = [topLeft[0] + w, topLeft[1] + h];
+            const velocity = [randRange(-maxVelComp*wall, maxVelComp*wall), randRange(-maxVelComp*wall, maxVelComp*wall)];
             rects.push({
                 topLeft,
-                bottomRight: [Math.min(topLeft[0] + w, 1), Math.min(topLeft[1] + h, 1)],
+                bottomRight,
                 phys: physStruct.create({
                     mass: density*w*h,
                     restitution,
                     velocity
                 })
            });
+           console.log(w, h);
          }
         return rects;
     };

@@ -1,8 +1,8 @@
 // Tunables!
 const defaults = {
     rectCount: 100,
-    minRectWidth: .05,
-    maxRectWidth: .2,
+    minRectWidth: 40,
+    maxRectWidth: 100,
     polysPerCircle: 20,
     circleCount: 200,
     minCircleRadius: 20,

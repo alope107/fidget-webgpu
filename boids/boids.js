@@ -9,7 +9,6 @@ const DEBUG_OUT_INTERVAL = 10000;
 const DEBUG_HALT = 100;
 
 async function main(config) {
-    console.log("hup");
     // Check webGPU support and get device
     const adapter = await navigator.gpu?.requestAdapter({
         powerPreference: 'high-performance', 
