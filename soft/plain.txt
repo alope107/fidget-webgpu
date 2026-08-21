@@ -1,0 +1,4 @@
+1. Detect overlap
+    a. See if vertex in any of the triangles
+        i. Start inefficently, no worry about bucketing
+    b. Color vertex if overlapping
