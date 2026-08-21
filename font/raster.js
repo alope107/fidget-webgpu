@@ -1,6 +1,6 @@
 import { arrayEq } from "./array.js";
 import { toClip } from "./scale.js";
-import { uint8RGBtoF32 } from "./color.js";
+import { uint8RGBtoF32 } from "../shared/color.js";
 
 
 // TODO: this should really actually be happening in a shader, huh?

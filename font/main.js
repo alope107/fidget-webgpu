@@ -1,6 +1,5 @@
 import { computeShaderCode } from "./compute.js";
 import { configFromQueryParams } from "./config.js";
-import { randClip, randDots } from "./random.js";
 import { extractPixels } from "./raster.js";
 import { renderShaderCode } from "./render.js";
 import { startResizeObservation } from "./resize.js";
