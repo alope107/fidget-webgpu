@@ -5,6 +5,7 @@ import KeyChecker from "./keyboard.js";
 import { renderShaderCode } from "./render.js";
 import { startResizeObservation } from "./resize.js";
 import { rectStruct, circleStruct, uniformsStruct } from "./structs.js";
+import { computePass } from "../shared/js/pass.js";
 
 const zoomInKey = 'e';
 const zoomOutKey = 'q';
@@ -301,29 +302,31 @@ const main = async () => {
     const render = async() => {
         const encoder = device.createCommandEncoder({label: "encoder"});
 
-        let moveRectsPass = encoder.beginComputePass();
-        moveRectsPass.setPipeline(moveRectsPipeline);
-        moveRectsPass.setBindGroup(0, pingToPong ? moveRectsBindGroupPingToPong : moveRectsBindGroupPongToPing);
-        moveRectsPass.dispatchWorkgroups(Math.ceil(rects.count/64), Math.ceil(rects.count/64), 1);
-        moveRectsPass.end();
+        const rectBindGroup = pingToPong ? moveRectsBindGroupPingToPong : moveRectsBindGroupPongToPing;
+        const rectWorkgroupSizes = [Math.ceil(rects.count/64), Math.ceil(rects.count/64), 1];
 
-        let moveCirclesPass = encoder.beginComputePass();
-        moveCirclesPass.setPipeline(moveCirclesPipeline);
-        moveCirclesPass.setBindGroup(0, pingToPong ? moveCirclesBindGroupPingToPong : moveCirclesBindGroupPongToPing);
-        moveCirclesPass.dispatchWorkgroups(Math.ceil(circles.count/64), Math.ceil(circles.count/64), 1);
-        moveCirclesPass.end();
+        const primaryCircleBindGroup = pingToPong ? moveCirclesBindGroupPingToPong : moveCirclesBindGroupPongToPing;
+        const secondaryCircleBindGroup = pingToPong ? moveCirclesBindGroupPongToPing : moveCirclesBindGroupPingToPong;
+        const circleWorkgroupSizes = [Math.ceil(circles.count/64), Math.ceil(circles.count/64), 1];
 
-        moveCirclesPass = encoder.beginComputePass();
-        moveCirclesPass.setPipeline(moveCirclesPipeline);
-        moveCirclesPass.setBindGroup(0, pingToPong ? moveCirclesBindGroupPongToPing : moveCirclesBindGroupPingToPong);
-        moveCirclesPass.dispatchWorkgroups(Math.ceil(circles.count/64), Math.ceil(circles.count/64), 1);
-        moveCirclesPass.end();
 
-        moveCirclesPass = encoder.beginComputePass();
-        moveCirclesPass.setPipeline(moveCirclesPipeline);
-        moveCirclesPass.setBindGroup(0, pingToPong ? moveCirclesBindGroupPingToPong : moveCirclesBindGroupPongToPing);
-        moveCirclesPass.dispatchWorkgroups(Math.ceil(circles.count/64), Math.ceil(circles.count/64), 1);
-        moveCirclesPass.end();
+        computePass(encoder, moveRectsPipeline,
+            rectBindGroup, 0,
+            ...rectWorkgroupSizes
+        );
+
+        computePass(encoder, moveCirclesPipeline,
+            primaryCircleBindGroup, 0,
+            ...circleWorkgroupSizes
+        );
+        computePass(encoder, moveCirclesPipeline,
+            secondaryCircleBindGroup, 0,
+            ...circleWorkgroupSizes
+        );
+        computePass(encoder, moveCirclesPipeline,
+            primaryCircleBindGroup, 0,
+            ...circleWorkgroupSizes
+        );
 
         baseRenderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
         const rectRenderPass = encoder.beginRenderPass(baseRenderPassDescriptor);
