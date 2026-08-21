@@ -1,4 +1,4 @@
-import { global_invocation_index } from "../shared/linear_indexing.js";
+import { global_invocation_index } from "../shared/js/linear_indexing.js";
 import { rectStruct, circleStruct, uniformsStruct, physStruct } from "./structs.js";
 
 export const computeShaderCode = /* wgsl */ `

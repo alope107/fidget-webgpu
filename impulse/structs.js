@@ -1,5 +1,5 @@
-import { randClip, randRange } from "../shared/random.js";
-import { randSolidColor } from "../shared/color.js";
+import { randClip, randRange } from "../shared/js/random.js";
+import { randSolidColor } from "../shared/js/color.js";
 
 // Want to recompute layouts?
 // Go here! https://webgpufundamentals.org/webgpu/lessons/resources/wgsl-offset-computer.html

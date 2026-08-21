@@ -1,5 +1,5 @@
 import { circleStruct } from "./structs.js";
-import { randRange, randClip } from "../shared/random.js"
+import { randRange, randClip } from "../shared/js/random.js"
 
 export const randColor = () => [Math.random(), Math.random(), Math.random(), 1.];
 export const randCircles = (circleCount, minRadius, maxRadius) => {
