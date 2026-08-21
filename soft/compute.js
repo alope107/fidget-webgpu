@@ -1,5 +1,5 @@
 import { edgeStruct, nodeStruct, triangleStruct, uniformsStruct } from "./structs.js";
-import { global_invocation_index } from "./linear_indexing.js";
+import { global_invocation_index } from "../shared/linear_indexing.js";
 import { barycentric, intersection } from "./vectors.js";
 
 export const computeShaderCode = /* wgsl */ `

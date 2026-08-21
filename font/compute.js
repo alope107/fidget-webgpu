@@ -1,4 +1,4 @@
-import { global_invocation_index } from "./linear_indexing.js";
+import { global_invocation_index } from "../shared/linear_indexing.js";
 import { dotStruct, uniformsStruct } from "./structs.js";
 
 export const computeShaderCode = /* wgsl */ `

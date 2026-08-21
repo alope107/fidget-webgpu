@@ -1,5 +1,5 @@
 import { BoidStruct, BucketStruct, UniformsStruct } from "./structs.js";
-import { global_invocation_index } from "./linear_indexing.js";
+import { global_invocation_index } from "../shared/linear_indexing.js";
 
 export const computeShaderCode = /* wgsl */`
 
