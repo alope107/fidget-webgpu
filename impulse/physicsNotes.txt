@@ -1,0 +1,26 @@
+Need to find:
+    - Collision normal
+    - Penetration depth
+    - Impulse magnitude
+
+Collision normal + penetration depth easy circle-circle and rect-rect.
+Need to figure out circle-rect
+
+Impulse magnitude:
+Will be dependent on the relative velocity along the collision normal
+    (v_b - v_a) dot n
+
+Restitution:
+In collision between two objects, use the minimum of the two restitutions
+Multiply element-wise by negative restitution
+
+Change in velocity:
+    v_new = v_old + (j * n/mass)
+    j = Unscaled Impulse
+    n = collision normal
+
+Impulse is a Change in momentum: mass dependent! Each object must depend on its own mass
+Naturally more massive objects will be more impacted, less massive will be less impacted
+
+j = -(1+e)(V_rel dot n) / (inv_mass_a + inv_mass_b)
+
