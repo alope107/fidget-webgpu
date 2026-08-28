@@ -205,11 +205,12 @@ export const uniformsStruct = (() => {
             gravity: vec2f, // 8 bytes, gravity vector
             wallCorner: vec2f, // 8 bytes, bottom right corner of the square the dots are bound to TODO: Think about 0 origin vs 0 top left
             cameraMat: mat3x3f, // 48 bytes, camera transformation for scale/translate/rotate
+            invCameraMat: mat3x3f, // 48 bytes, goes from camera space to world space
             invWorldScale: f32, // 4 bytes, scale for the overall game world
             // pad 12 bytes
-        } // total 96 bytes
+        } // total 144 bytes
 `;
-    const byteCount = 96;
+    const byteCount = 144;
     const u32Count = byteCount/4;
     const floatCount = byteCount/4;
     const createEmpty = () => {
@@ -223,7 +224,9 @@ export const uniformsStruct = (() => {
                 gravityView: new Float32Array(data, 16),
                 wallCornerView: new Float32Array(data, 24),
                 cameraMatView: new Float32Array(data, 32),
-                invWorldScaleView: new Float32Array(data, 80),
+                invCameraMatView: new Float32Array(data, 80),
+                invWorldScaleView: new Float32Array(data, 128),
+                // 
             },
             count: 1
         };
@@ -234,7 +237,7 @@ export const uniformsStruct = (() => {
         u32Count,
         floatCount,
         createEmpty,
-        createFilled: ({pointerLoc, pointerPressed, pointerHeld, gravity, wallCorner, cameraMat, invWorldScale}) => {
+        createFilled: ({pointerLoc, pointerPressed, pointerHeld, gravity, wallCorner, cameraMat, invCameraMat, invWorldScale}) => {
             const uniform = createEmpty();
             uniform.views.pointerLocView.set(pointerLoc, 0);
             uniform.views.pointerPressedView.set([pointerPressed], 0);
@@ -244,6 +247,10 @@ export const uniformsStruct = (() => {
             uniform.views.cameraMatView.set([...cameraMat[0], 0, // Adding mat3x3f internal padding
                                              ...cameraMat[1], 0,
                                              ...cameraMat[2], 0,
+                                            ], 0);
+            uniform.views.invCameraMatView.set([...invCameraMat[0], 0, // Adding mat3x3f internal padding
+                                             ...invCameraMat[1], 0,
+                                             ...invCameraMat[2], 0,
                                             ], 0);
             uniform.views.invWorldScaleView.set([invWorldScale], 0);
             return uniform;

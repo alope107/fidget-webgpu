@@ -139,14 +139,14 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         }
 
         
-        let scale = uniforms.invWorldScale;//.001;//uniforms.invWorldScale;
-        let wall = 1.0/scale; // TODO: swap to wallCorner
+        let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
 
-        // let pointerLoc = uniforms.cameraMat * unif
+        // TODO: compute this once, not once per thread
+        let pointerLoc = (uniforms.invCameraMat * vec3(uniforms.pointerLoc, 1)).xy;
 
         let pointerRadius=.05;
         if(uniforms.pointerHeld > 0) {
-            let delta = newCircle.center - (uniforms.pointerLoc*wall);
+            let delta = newCircle.center - (pointerLoc*wall); // todo: don't scale based off of wall
             let deltaLen = length(delta);
             if(deltaLen < newCircle.radius+(pointerRadius*wall)) {
                 newCircle.phys.velocity += delta/6;

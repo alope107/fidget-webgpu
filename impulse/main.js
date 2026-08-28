@@ -1,4 +1,4 @@
-import buildCamera from "./camera.js";
+import {buildCamera, buildInvCamera} from "./camera.js";
 import { computeShaderCode } from "./compute.js";
 import { configFromQueryParams } from "./config.js";
 import KeyChecker from "./keyboard.js";
@@ -361,14 +361,16 @@ const main = async () => {
         if(keys.get(upKey).held) trans[1] -= transSpeed;
         if(keys.get(downKey).held) trans[1] += transSpeed;
 
-        const camera = buildCamera(trans, [camScale, camScale]);
+        const cameraMat = buildCamera(trans, [camScale, camScale]);
+        const invCameraMat= buildInvCamera(trans, [camScale, camScale], [invWorldScale, invWorldScale]);
         const uniform = uniformsStruct.createFilled({
             pointerLoc: pointerLoc,
             pointerHeld: pointerHeldNow,
             pointerPressed: !pointerHeldLastFrame && pointerHeldNow,
             gravity: [c.gravX, c.gravY],
             wallCorner: [1000, -1000], // NOT YET USED, TODO
-            cameraMat: camera,
+            cameraMat,
+            invCameraMat,
             invWorldScale
         });
         pointerHeldLastFrame = pointerHeldNow;
