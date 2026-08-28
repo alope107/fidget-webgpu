@@ -38,7 +38,6 @@ const UNIT_CIRCLE_POINTS = ${unitCirclePointsWGSL(polysPerCircle)}
 
 @vertex fn drawCircle(@builtin(vertex_index) vertexIdx : u32, 
                     @builtin(instance_index) instanceIdx : u32) -> VertexOutput {
-    let scale = 0.001;
     _ = rects[0].topLeft;
     let circle = circles[instanceIdx];
     let r = select(0., circle.radius, (vertexIdx & 1) == 0); // Alternate between edges and center

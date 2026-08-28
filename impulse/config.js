@@ -13,7 +13,7 @@ const defaults = {
     pointerRadius: .03, // NOT YET USED
     gravX: 0,
     gravY: 0,
-    baseScale: .001
+    worldScale: 1000
 };
 
 // does not currently validate params!

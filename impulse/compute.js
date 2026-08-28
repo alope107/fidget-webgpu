@@ -138,9 +138,11 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
             newCircle.overlaps |= select(0u, 1u, rectCircleOverlaps(rect, oldCircle));
         }
 
-        // TODO: general walls
-        let scale = 0.001;
-        let wall = 1.0/scale;
+        
+        let scale = uniforms.invWorldScale;//.001;//uniforms.invWorldScale;
+        let wall = 1.0/scale; // TODO: swap to wallCorner
+
+        // let pointerLoc = uniforms.cameraMat * unif
 
         let pointerRadius=.05;
         if(uniforms.pointerHeld > 0) {
@@ -155,14 +157,8 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
 
         let maxSpeed = 5.0;
         let speed = length(newCircle.phys.velocity);
-        // if(speed > maxSpeed) {
-        //     newCircle.phys.velocity *= maxSpeed/speed;
-        // }
 
-
-
-        // TODO: Configurable / better base friction?
-        newCircle.center += newCircle.phys.velocity;//*.9;
+        newCircle.center += newCircle.phys.velocity;
 
         newCircle.overlaps = 0;
         if(newCircle.center.y < -wall + newCircle.radius) {

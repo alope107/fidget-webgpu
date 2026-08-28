@@ -19,7 +19,8 @@ let pointerHeldNow = false;
 let pointerHeldLastFrame = false;
 
 
-let scale;
+let invWorldScale;
+let camScale;
 let trans = [0, 0];
 
 const main = async () => {
@@ -37,7 +38,8 @@ const main = async () => {
     }
 
     const c = configFromQueryParams();
-    scale = c.baseScale;
+    invWorldScale = 1/c.worldScale;
+    camScale = invWorldScale; // starts off with camera holding whole world
 
     const keys = new KeyChecker([
         zoomInKey,
@@ -146,7 +148,7 @@ const main = async () => {
     };
 
     const rects = rectStruct.createFilledArray(
-        rectStruct.randomJSRects(c.rectCount, c.minRectWidth, c.maxRectWidth, c.maxRandVelComp, c.density, c.restitution)
+        rectStruct.randomJSRects(c.rectCount, c.minRectWidth, c.maxRectWidth, c.maxRandVelComp, c.density, c.restitution, invWorldScale)
     );
 
     const rectBufferConfig = {
@@ -170,7 +172,7 @@ const main = async () => {
     device.queue.writeBuffer(rectBufferPong, 0, rects.data);
 
     const circles = circleStruct.createFilledArray(
-        circleStruct.randJSCircles(c.circleCount, c.minCircleRadius, c.maxCircleRadius, c.maxRandVelComp, c.density, c.restitution)
+        circleStruct.randJSCircles(c.circleCount, c.minCircleRadius, c.maxCircleRadius, c.maxRandVelComp, c.density, c.restitution, invWorldScale)
     );
 
     const circleBufferConfig = {
@@ -287,7 +289,7 @@ const main = async () => {
 
     
 
-    renderTarget.addEventListener("pointermove", () => {
+    renderTarget.addEventListener("pointermove", (event) => {
         // Rescale to clip space, the scaling used by the compute/vertex shaders
         pointerLoc = [(2 * event.clientX / renderTarget.width) - 1, -((2 * event.clientY / renderTarget.height) - 1)];
     });
@@ -350,8 +352,8 @@ const main = async () => {
 
     const animationFrame = async (timestamp) => {
         // TODO: move magic # to config
-        if(keys.get(zoomInKey).held) scale *= 1.1;
-        if(keys.get(zoomOutKey).held) scale *= .9;
+        if(keys.get(zoomInKey).held) camScale *= 1.1;
+        if(keys.get(zoomOutKey).held) camScale *= .9;
         // TODO: Move magic # to config and maybe scale it with scale?
         const transSpeed = 10;
         if(keys.get(leftKey).held) trans[0] += transSpeed;
@@ -359,14 +361,15 @@ const main = async () => {
         if(keys.get(upKey).held) trans[1] -= transSpeed;
         if(keys.get(downKey).held) trans[1] += transSpeed;
 
-        const camera = buildCamera(trans, [scale, scale]);
+        const camera = buildCamera(trans, [camScale, camScale]);
         const uniform = uniformsStruct.createFilled({
             pointerLoc: pointerLoc,
             pointerHeld: pointerHeldNow,
             pointerPressed: !pointerHeldLastFrame && pointerHeldNow,
             gravity: [c.gravX, c.gravY],
             wallCorner: [1000, -1000], // NOT YET USED, TODO
-            cameraMat: camera
+            cameraMat: camera,
+            invWorldScale
         });
         pointerHeldLastFrame = pointerHeldNow;
         keys.tick();

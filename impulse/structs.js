@@ -92,10 +92,9 @@ export const rectStruct = (() => {
         return data;
     };
     // Eventually move to random density / restitution
-    const randomJSRects = (count, minWidth, maxWidth, maxVelComp, density, restitution) => {
+    const randomJSRects = (count, minWidth, maxWidth, maxVelComp, density, restitution, invWorldScale) => {
         // TODO: better
-        const scale = .001;
-        const wall = 1/scale;
+        const wall = 1/invWorldScale;
         const rects = [];
 
         for(let i = 0; i < count; i++) {
@@ -112,7 +111,6 @@ export const rectStruct = (() => {
                     velocity
                 })
            });
-           console.log(w, h);
          }
         return rects;
     };
@@ -167,10 +165,9 @@ export const circleStruct = (() => {
         return data;
     };
     // Eventually move to random density/restitution
-    const randJSCircles =  (circleCount, minRadius, maxRadius, maxVelComp,  density, restitution) => {
+    const randJSCircles =  (circleCount, minRadius, maxRadius, maxVelComp,  density, restitution, invWorldScale) => {
         let circles = [];
-        const scale = .001;
-        const wall = 1/scale;
+        const wall = 1/invWorldScale; // TODO: use wallcorners
         for(let i = 0; i < circleCount; i++) {
             const velocity = [randRange(-maxVelComp*wall, maxVelComp*wall), randRange(-maxVelComp*wall, maxVelComp*wall)];
             const radius = randRange(minRadius, maxRadius);
@@ -207,10 +204,12 @@ export const uniformsStruct = (() => {
             pointerHeld: u32, // 4 bytes, is the pointer currently held down?
             gravity: vec2f, // 8 bytes, gravity vector
             wallCorner: vec2f, // 8 bytes, bottom right corner of the square the dots are bound to TODO: Think about 0 origin vs 0 top left
-            cameraMat: mat3x3f // 48 bytes camera transformation for scale/translate/rotate
-        } // total 80 bytes
+            cameraMat: mat3x3f, // 48 bytes, camera transformation for scale/translate/rotate
+            invWorldScale: f32, // 4 bytes, scale for the overall game world
+            // pad 12 bytes
+        } // total 96 bytes
 `;
-    const byteCount = 80;
+    const byteCount = 96;
     const u32Count = byteCount/4;
     const floatCount = byteCount/4;
     const createEmpty = () => {
@@ -223,7 +222,8 @@ export const uniformsStruct = (() => {
                 pointerHeldView: new Uint32Array(data, 12),
                 gravityView: new Float32Array(data, 16),
                 wallCornerView: new Float32Array(data, 24),
-                cameraMatView: new Float32Array(data, 32)
+                cameraMatView: new Float32Array(data, 32),
+                invWorldScaleView: new Float32Array(data, 80),
             },
             count: 1
         };
@@ -234,7 +234,7 @@ export const uniformsStruct = (() => {
         u32Count,
         floatCount,
         createEmpty,
-        createFilled: ({pointerLoc, pointerPressed, pointerHeld, gravity, wallCorner, cameraMat}) => {
+        createFilled: ({pointerLoc, pointerPressed, pointerHeld, gravity, wallCorner, cameraMat, invWorldScale}) => {
             const uniform = createEmpty();
             uniform.views.pointerLocView.set(pointerLoc, 0);
             uniform.views.pointerPressedView.set([pointerPressed], 0);
@@ -244,9 +244,8 @@ export const uniformsStruct = (() => {
             uniform.views.cameraMatView.set([...cameraMat[0], 0, // Adding mat3x3f internal padding
                                              ...cameraMat[1], 0,
                                              ...cameraMat[2], 0,
-                                            ], 
-
-                0); 
+                                            ], 0);
+            uniform.views.invWorldScaleView.set([invWorldScale], 0);
             return uniform;
         }
     };
