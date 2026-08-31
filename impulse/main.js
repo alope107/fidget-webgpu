@@ -4,7 +4,7 @@ import { configFromQueryParams } from "./config.js";
 import KeyChecker from "./keyboard.js";
 import { renderShaderCode } from "./render.js";
 import { startResizeObservation } from "./resize.js";
-import { rectStruct, circleStruct, uniformsStruct } from "./structs.js";
+import { physStruct, uniformsStruct } from "./structs.js";
 import { computePass } from "../shared/js/pass.js";
 
 const zoomInKey = 'e';
@@ -147,8 +147,16 @@ const main = async () => {
         ]
     };
 
-    const rects = rectStruct.createFilledArray(
-        rectStruct.randomJSRects(c.rectCount, c.minRectWidth, c.maxRectWidth, c.maxRandVelComp, c.density, c.restitution, invWorldScale)
+    const rects = physStruct.createFilledArray(
+        physStruct.randJSRects({
+            count: c.rectCount,
+            minWidth: c.minRectWidth,
+            maxWidth: c.maxRectWidth,
+            maxVelComp: c.maxRandVelComp,
+            density: c.density,
+            restitution: c.restitution, 
+            invWorldScale}
+        )
     );
 
     const rectBufferConfig = {
@@ -171,8 +179,16 @@ const main = async () => {
     device.queue.writeBuffer(rectBufferPing, 0, rects.data);
     device.queue.writeBuffer(rectBufferPong, 0, rects.data);
 
-    const circles = circleStruct.createFilledArray(
-        circleStruct.randJSCircles(c.circleCount, c.minCircleRadius, c.maxCircleRadius, c.maxRandVelComp, c.density, c.restitution, invWorldScale)
+    const circles = physStruct.createFilledArray(
+        physStruct.randJSCircles({
+            count: c.circleCount,
+            minWidth: c.minCircleRadius*2,
+            maxWidth: c.maxCircleRadius*2,
+            maxVelComp: c.maxRandVelComp,
+            density: c.density,
+            restitution: c.restitution, 
+            invWorldScale}
+        )
     );
 
     const circleBufferConfig = {

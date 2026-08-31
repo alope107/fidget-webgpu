@@ -1,5 +1,5 @@
-import { randClip, randRange } from "../shared/js/random.js";
-import { randSolidColor } from "../shared/js/color.js";
+import { randRange } from "../shared/js/random.js";
+import { randRGB } from "../shared/js/color.js";
 
 // Want to recompute layouts?
 // Go here! https://webgpufundamentals.org/webgpu/lessons/resources/wgsl-offset-computer.html
@@ -10,9 +10,13 @@ export const physStruct = (() => {
             invMass: f32, // 4 bytes
             restitution: f32, // 4 bytes
             velocity: vec2f, // 8 bytes
-        }  // total 16 bytes
+            center: vec2f, // 8 bytes
+            halfDim: vec2f, // 8 bytes half width and height of bounding box
+            color: vec3f, // 24 bytes, rgb w/o alpha
+            overlaps: u32, // 4 bytes pseudobool, currently overlapping with anyone else?
+        };  // total 48 bytes
     `
-    const byteCount = 16;
+    const byteCount = 48;
     const floatCount = byteCount / 4;
     const createEmptyArray = (physCount) => {
         const data = new ArrayBuffer(byteCount * physCount);
@@ -21,175 +25,75 @@ export const physStruct = (() => {
             views: {
                 invMassView: new Float32Array(data, 0),
                 restitutionView: new Float32Array(data, 4),
-                velocityView: new Float32Array(data, 8)
+                velocityView: new Float32Array(data, 8),
+                centerView: new Float32Array(data, 16),
+                halfDimView: new Float32Array(data, 24),
+                colorView: new Float32Array(data, 32),
+                overlapsView: new Uint32Array(data, 44)
             },
             count: physCount
         };
     };
     const createFilledArray = (physData) => {
         const data = createEmptyArray(physData.length);
-        const {invMassView, restitutionView, velocityView} = data.views;
-        physData.forEach(({invMass, restitution, velocity}, i) => {
+        const {invMassView, restitutionView, velocityView, centerView, halfDimView, colorView} = data.views;
+        physData.forEach(({invMass, restitution, velocity, center, halfDim, color}, i) => {
             invMassView.set([invMass], i*floatCount);
             restitutionView.set([restitution], i*floatCount);
             velocityView.set(velocity, i*floatCount);
-        });
-        return data;
-    };
-    const create = ({mass, restitution, velocity}) => new Float32Array(
-        [mass !== 0 ? 1/mass : mass,
-         restitution,
-         velocity[0],
-         velocity[1]
-        ]
-    );
-    return {
-        code,
-        byteCount,
-        floatCount,
-        createEmptyArray,
-        createFilledArray,
-        create
-    };
-})();
-
-export const rectStruct = (() => { 
-    const code = /* wgsl */`
-        struct Rect {
-            center: vec2f, // 8 bytes
-            halfDim: vec2f, // 8 bytes
-            phys: Phys, // 16 bytes
-            overlaps: u32, // 4 bytes
-            // pad 4 bytes
-        }  // total 40 bytes
-    `
-    const byteCount = 40;
-    const floatCount = byteCount / 4;
-    const uint32Count = byteCount / 4;
-    const createEmptyArray = (rectCount) => {
-        const data = new ArrayBuffer(byteCount * rectCount);
-        return {
-            data,
-            views: {
-                centerView: new Float32Array(data, 0),
-                halfDimView: new Float32Array(data, 8),
-                physView: new Float32Array(data, 16), // Float32 makes sens for now... but what if phys had both f32 and u32????
-                overlapsView: new Uint32Array(data, 32),
-            },
-            count: rectCount
-        };
-    };
-    const createFilledArray = (rectData) => {
-        const data = createEmptyArray(rectData.length);
-        const {centerView, halfDimView, physView} = data.views;
-        rectData.forEach(({center, halfDim, phys}, i) => {
             centerView.set(center, i*floatCount);
             halfDimView.set(halfDim, i*floatCount);
-            physView.set(phys, i*floatCount)
-            // overlaps set to 0
-            // pad set to 0
+            colorView.set(color, i*floatCount)
+            // start overlapping as 0
         });
         return data;
     };
-    // Eventually move to random density / restitution
-    const randomJSRects = (count, minWidth, maxWidth, maxVelComp, density, restitution, invWorldScale) => {
+    const create = ({mass, restitution, velocity, center, halfDim, color}) => new Float32Array(
+        [mass !== 0 ? 1/mass : mass,
+         restitution,
+         ...velocity,
+         ...center,
+         ...halfDim,
+         ...color,
+         0, // overlapping
+        ]
+    );
+    // areaFunction is how to compute the area of the physics objects given half dimensions
+    // squareBB gives whether the bounding box should be a square or can be a rectangle
+    const randPhys = ({count, minWidth, maxWidth, maxVelComp, density, restitution, invWorldScale}, areaFunc, squareBB=false) => {
         // TODO: better
         const wall = 1/invWorldScale;
-        const rects = [];
+        const objs = [];
 
         for(let i = 0; i < count; i++) {
             const center = [randRange(-wall, wall), randRange(-wall, wall)];
-            const halfDim = [randRange(minWidth, maxWidth)/2, randRange(minWidth, maxWidth)/2];
+
+            const halfWidth = randRange(minWidth, maxWidth)/2;
+            const halfDim = [halfWidth, squareBB ? halfWidth : randRange(minWidth, maxWidth)/2];
+
             const velocity = [randRange(-maxVelComp*wall, maxVelComp*wall), randRange(-maxVelComp*wall, maxVelComp*wall)];
-            rects.push({
+            const color = randRGB();
+            objs.push({
+                invMass: 1 / (density * areaFunc(halfDim)),
+                restitution,
+                velocity,
                 center,
                 halfDim,
-                phys: physStruct.create({
-                    mass: density * halfDim[0]*halfDim[1]*4, // density * area
-                    restitution,
-                    velocity
-                })
-           });
-         }
-        return rects;
-    };
-    return {
-        code,
-        byteCount,
-        floatCount,
-        createEmptyArray,
-        createFilledArray,
-        randomJSRects
-    };
-})();
-
-export const circleStruct = (() => { 
-    const code = /* wgsl */`
-        struct Circle {
-            color: vec4f, // 16 bytes
-            center: vec2f, // 8 bytes
-            radius: f32, // 4 bytes
-            overlaps: u32, // 4 bytes
-            phys: Phys // 16 bytes
-        }  // total 48 bytes
-    `
-    const byteCount = 48;
-    const floatCount = byteCount / 4;
-    const uint32Count = byteCount / 4;
-    const createEmptyArray = (circleCount) => {
-        const data = new ArrayBuffer(byteCount * circleCount);
-        return {
-            data,
-            views: {
-                colorView: new Float32Array(data, 0),
-                centerView: new Float32Array(data, 16),
-                radiusView: new Float32Array(data, 24),
-                overlapsView: new Uint32Array(data, 28),
-                physView: new Float32Array(data, 32)
-            },
-            count: circleCount
-        };
-    };
-    const createFilledArray = (circleData) => {
-        const data = createEmptyArray(circleData.length);
-        const {colorView, centerView, radiusView, physView} = data.views;
-        circleData.forEach(({color, center, radius, phys}, i) => {
-            colorView.set(color, i*floatCount);
-            centerView.set(center, i*floatCount);
-            radiusView.set([radius], i*floatCount);
-            // overlaps set to 0s
-            physView.set(phys, i*floatCount);
-            
-        });
-        return data;
-    };
-    // Eventually move to random density/restitution
-    const randJSCircles =  (circleCount, minRadius, maxRadius, maxVelComp,  density, restitution, invWorldScale) => {
-        let circles = [];
-        const wall = 1/invWorldScale; // TODO: use wallcorners
-        for(let i = 0; i < circleCount; i++) {
-            const velocity = [randRange(-maxVelComp*wall, maxVelComp*wall), randRange(-maxVelComp*wall, maxVelComp*wall)];
-            const radius = randRange(minRadius, maxRadius);
-
-            circles.push({
-                center: [randRange(-wall, wall), randRange(-wall, wall)],//[randClip(), randClip()],
-                color: randSolidColor(),
-                radius,
-                phys: physStruct.create({
-                    restitution,
-                    mass: Math.PI * radius**2 * density,
-                    velocity
-                })
+                color
             });
-        }
-        return circles;
-    }
+         }
+        return objs;
+    };
+    const randJSRects = (opts) => randPhys(opts, ([halfWidth, halfHeight]) => halfWidth * halfHeight * 4);
+    const randJSCircles = (opts) => randPhys(opts, ([halfWidth, halfHeight]) => Math.PI * halfWidth**2);
     return {
         code,
         byteCount,
         floatCount,
+        create,
         createEmptyArray,
         createFilledArray,
+        randJSRects,
         randJSCircles
     };
 })();
@@ -225,7 +129,6 @@ export const uniformsStruct = (() => {
                 cameraMatView: new Float32Array(data, 32),
                 invCameraMatView: new Float32Array(data, 80),
                 invWorldScaleView: new Float32Array(data, 128),
-                // 
             },
             count: 1
         };

@@ -1,12 +1,10 @@
 import { global_invocation_index } from "../shared/js/linear_indexing.js";
-import { rectStruct, circleStruct, uniformsStruct, physStruct } from "./structs.js";
+import { uniformsStruct, physStruct } from "./structs.js";
 
 export const computeShaderCode = /* wgsl */ `
 ${global_invocation_index}
 
 ${physStruct.code}
-${rectStruct.code}
-${circleStruct.code}
 ${uniformsStruct.code}
 
 struct Manifold {
@@ -15,10 +13,10 @@ struct Manifold {
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<storage, read_write> oldRects : array<Rect>; 
-@group(0) @binding(2) var<storage, read_write> oldCircles : array<Circle>;
-@group(0) @binding(3) var<storage, read_write> newRects : array<Rect>; 
-@group(0) @binding(4) var<storage, read_write> newCircles : array<Circle>; 
+@group(0) @binding(1) var<storage, read_write> oldRects : array<Phys>; 
+@group(0) @binding(2) var<storage, read_write> oldCircles : array<Phys>;
+@group(0) @binding(3) var<storage, read_write> newRects : array<Phys>; 
+@group(0) @binding(4) var<storage, read_write> newCircles : array<Phys>; 
 
 
 // TODO: better workgroup size UPDATE THE GLOBAL INDEX CALC IF CHANGED
@@ -32,8 +30,8 @@ struct Manifold {
 
         // Just making sure we don't lose our bindings
         // TODO: Automatic binding creation
-        _ = oldCircles[0].radius;
-        _ = newCircles[0].radius;
+        _ = oldCircles[0].center;
+        _ = newCircles[0].center;
         _ = oldRects[0].center;
         _ = newRects[0].center;
         _ = uniforms.pointerHeld;
@@ -43,7 +41,7 @@ struct Manifold {
 
         newRect.center = oldRect.center;
         newRect.halfDim = oldRect.halfDim;
-        newRect.phys.velocity = oldRect.phys.velocity;
+        newRect.velocity = oldRect.velocity;
 
 
         // TODO: broad phase collision etc. etc.
@@ -60,30 +58,30 @@ struct Manifold {
 
         let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
 
-        newRect.center += newRect.phys.velocity;
+        newRect.center += newRect.velocity;
 
         if(newRect.center.y < -wall + newRect.halfDim.y) {
             newRect.center.y = -wall + newRect.halfDim.y;
-            newRect.phys.velocity.y *= -newRect.phys.restitution;
+            newRect.velocity.y *= -newRect.restitution;
         }
         if(newRect.center.y > wall - newRect.halfDim.y) {
             newRect.center.y = wall - newRect.halfDim.y;
-            newRect.phys.velocity.y *= -newRect.phys.restitution;
+            newRect.velocity.y *= -newRect.restitution;
         }
         if(newRect.center.x < -wall + newRect.halfDim.x) {
             newRect.center.x = -wall + newRect.halfDim.x;
-            newRect.phys.velocity.x *= -newRect.phys.restitution;
+            newRect.velocity.x *= -newRect.restitution;
         }
         if(newRect.center.x > wall - newRect.halfDim.x) {
             newRect.center.x = wall - newRect.halfDim.x;
-            newRect.phys.velocity.x *= -newRect.phys.restitution;
+            newRect.velocity.x *= -newRect.restitution;
         }
 
 
 }
 
 // to pointer or not to pointer
-fn calcJ(p1 : Phys, p2 : Phys, normal : vec2f) -> f32 {
+fn calcJ(p1 : Phys, p2: Phys, normal : vec2f) -> f32 {
     let e = min(p1.restitution, p2.restitution);
     let vRel = p2.velocity - p1.velocity;
     let velAlongNormal = dot(vRel, normal);
@@ -98,7 +96,7 @@ fn calcJ(p1 : Phys, p2 : Phys, normal : vec2f) -> f32 {
 // Firefox complains about these pointers :'(
 // Argument 'r1' at index 0 is a pointer of space Storage { access: StorageAccess(LOAD | STORE) }, which can't be passed into functions.
 // ..should prob give up on using pointer here
-fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read_write>) -> bool {
+fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_write>) -> bool {
     return !(r1.center.x + r1.halfDim.x < r2.center.x - r2.halfDim.x) &&
            !(r2.center.x + r2.halfDim.x < r1.center.x - r1.halfDim.x) &&
            !(r1.center.y - r1.halfDim.y > r2.center.y + r2.halfDim.y) &&
@@ -115,8 +113,8 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         if(id >= arrayLength(&oldCircles)) { return; }
 
         // Just making sure we don't lose our bindings
-        _ = oldCircles[0].radius;
-        _ = newCircles[0].radius;
+        _ = oldCircles[0].halfDim.x;
+        _ = newCircles[0].halfDim.x;
         _ = oldRects[0].center;
         _ = newRects[0].center;
         _ = uniforms.pointerHeld;
@@ -124,7 +122,7 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         let newCircle = &newCircles[id];
         let oldCircle = &oldCircles[id];
         newCircle.center = oldCircle.center;
-        newCircle.phys.velocity = oldCircle.phys.velocity;
+        newCircle.velocity = oldCircle.velocity;
 
         // TODO: broad phase collision etc. etc.
         newCircle.overlaps = 0;
@@ -135,12 +133,12 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
             let collides = !all(normal == vec2f()) && id != i;
             newCircle.overlaps |= select(0u, 1u, collides);
             if(collides) { // TODO: branchless?
-                let j = calcJ(oldCircle.phys, other.phys, normal);
-                var force = -j * oldCircle.phys.invMass * normal;
-                if(length(force) > 1) {
+                let j = calcJ(*oldCircle, *other, normal);
+                var force = -j * oldCircle.invMass * normal;
+                if(length(force) > 1) { // should be greater than 0????????????
                     force /= length(force);
                 }
-                newCircle.phys.velocity += force;
+                newCircle.velocity += force;
 
                 let percent = 0.2;
                 let slop = 0.03;
@@ -148,9 +146,9 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
                 // Allow a bit of penetration to avoid jitter
                 let depth = max(manifold.penetrationDepth - slop, 0.0);
 
-                let correction = (depth / (newCircle.phys.invMass + other.phys.invMass)) * percent * normal;
+                let correction = (depth / (newCircle.invMass + other.invMass)) * percent * normal;
                 // Directly correct position - not going through velocity
-                newCircle.center -= newCircle.phys.invMass * correction;
+                // newCircle.center -= newCircle.invMass * correction;
             }
         }
 
@@ -169,38 +167,38 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         if(uniforms.pointerHeld > 0) {
             let delta = newCircle.center - (pointerLoc*wall); // todo: don't scale based off of wall
             let deltaLen = length(delta);
-            if(deltaLen < newCircle.radius+(pointerRadius*wall)) {
-                newCircle.phys.velocity += delta/6;
+            if(deltaLen < newCircle.halfDim.x+(pointerRadius*wall)) {
+                newCircle.velocity += delta/6;
             }
         }
 
-        newCircle.phys.velocity += uniforms.gravity;
+        newCircle.velocity += uniforms.gravity;
 
         let maxSpeed = 5.0;
-        let speed = length(newCircle.phys.velocity);
+        let speed = length(newCircle.velocity);
 
-        newCircle.center += newCircle.phys.velocity;
+        newCircle.center += newCircle.velocity;
 
         newCircle.overlaps = 0;
-        if(newCircle.center.y < -wall + newCircle.radius) {
-            newCircle.center.y = -wall + newCircle.radius;
-            newCircle.phys.velocity.y *= -newCircle.phys.restitution;
+        if(newCircle.center.y < -wall + newCircle.halfDim.x) {
+            newCircle.center.y = -wall + newCircle.halfDim.x;
+            newCircle.velocity.y *= -newCircle.restitution;
         }
-        if(newCircle.center.y > wall - newCircle.radius) {
-            newCircle.center.y = wall - newCircle.radius;
-            newCircle.phys.velocity.y *= -newCircle.phys.restitution;
+        if(newCircle.center.y > wall - newCircle.halfDim.x) {
+            newCircle.center.y = wall - newCircle.halfDim.x;
+            newCircle.velocity.y *= -newCircle.restitution;
         }
-        if(newCircle.center.x < -wall + newCircle.radius) {
-            newCircle.center.x = -wall + newCircle.radius;
-            newCircle.phys.velocity.x *= -newCircle.phys.restitution;
+        if(newCircle.center.x < -wall + newCircle.halfDim.x) {
+            newCircle.center.x = -wall + newCircle.halfDim.x;
+            newCircle.velocity.x *= -newCircle.restitution;
         }
-        if(newCircle.center.x > wall - newCircle.radius) {
-            newCircle.center.x = wall - newCircle.radius;
-            newCircle.phys.velocity.x *= -newCircle.phys.restitution;
+        if(newCircle.center.x > wall - newCircle.halfDim.x) {
+            newCircle.center.x = wall - newCircle.halfDim.x;
+            newCircle.velocity.x *= -newCircle.restitution;
         }
 }
 
-fn rectCollision(r1 : Rect, r2: Rect) -> Manifold {
+fn rectCollision(r1 :Phys, r2:Phys) -> Manifold {
     let delta = r2.center - r1.center;
 
     let overlap = r1.halfDim + r2.halfDim - abs(delta);
@@ -224,14 +222,14 @@ fn rectCollision(r1 : Rect, r2: Rect) -> Manifold {
     );
 }
 
-fn circleCollision(c1 : Circle, c2: Circle) -> Manifold {
+fn circleCollision(c1 :Phys, c2:Phys) -> Manifold {
     let delta = c2.center - c1.center;
     let squaredDist = dot(delta, delta);
-    let touchingDist = c1.radius + c2.radius;
+    let touchingDist = c1.halfDim.x + c2.halfDim.x;
     if(squaredDist < pow(touchingDist, 2)) {
         let dist = sqrt(squaredDist);
         if(dist == 0.0) { // Avoid divide by 0
-            return Manifold(vec2(1, 0), c1.radius);
+            return Manifold(vec2(1, 0), c1.halfDim.x);
         }
         let penetrationDepth = touchingDist - dist;
         return Manifold(delta/dist, penetrationDepth);
