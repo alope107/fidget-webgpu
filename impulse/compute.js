@@ -140,7 +140,7 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
             if(collides) { // TODO: branchless?
                 let j = calcJ(*oldCircle, *other, normal);
                 var force = -j * oldCircle.invMass * normal;
-                if(length(force) > 1) { // should be greater than 0????????????
+                if(length(force) > 1) {
                     force /= length(force);
                 }
                 newCircle.velocity += force;
