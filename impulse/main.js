@@ -179,6 +179,16 @@ const main = async () => {
     device.queue.writeBuffer(rectBufferPing, 0, rects.data);
     device.queue.writeBuffer(rectBufferPong, 0, rects.data);
 
+    console.log(physStruct.randJSCircles({
+            count: c.circleCount,
+            minWidth: c.minCircleRadius*2,
+            maxWidth: c.maxCircleRadius*2,
+            maxVelComp: c.maxRandVelComp,
+            density: c.density,
+            restitution: c.restitution, 
+            invWorldScale}
+        ));
+
     const circles = physStruct.createFilledArray(
         physStruct.randJSCircles({
             count: c.circleCount,
@@ -320,7 +330,8 @@ const main = async () => {
     const render = async() => {
         const encoder = device.createCommandEncoder({label: "encoder"});
 
-        const rectBindGroup = pingToPong ? moveRectsBindGroupPingToPong : moveRectsBindGroupPongToPing;
+        const primaryRectBindGroup = pingToPong ? moveRectsBindGroupPingToPong : moveRectsBindGroupPongToPing;
+        const secondaryRectBindGroup = pingToPong ? moveRectsBindGroupPongToPing : moveRectsBindGroupPingToPong;
         const rectWorkgroupSizes = [Math.ceil(rects.count/64), Math.ceil(rects.count/64), 1];
 
         const primaryCircleBindGroup = pingToPong ? moveCirclesBindGroupPingToPong : moveCirclesBindGroupPongToPing;
@@ -328,22 +339,29 @@ const main = async () => {
         const circleWorkgroupSizes = [Math.ceil(circles.count/64), Math.ceil(circles.count/64), 1];
 
 
-        computePass(encoder, moveRectsPipeline,
-            rectBindGroup, 0,
-            ...rectWorkgroupSizes
-        );
-
         computePass(encoder, moveCirclesPipeline,
             primaryCircleBindGroup, 0,
             ...circleWorkgroupSizes
+        );
+        computePass(encoder, moveRectsPipeline,
+            primaryRectBindGroup, 0,
+            ...rectWorkgroupSizes
         );
         computePass(encoder, moveCirclesPipeline,
             secondaryCircleBindGroup, 0,
             ...circleWorkgroupSizes
         );
+        computePass(encoder, moveRectsPipeline,
+            secondaryRectBindGroup, 0,
+            ...rectWorkgroupSizes
+        );
         computePass(encoder, moveCirclesPipeline,
             primaryCircleBindGroup, 0,
             ...circleWorkgroupSizes
+        );
+        computePass(encoder, moveRectsPipeline,
+            primaryRectBindGroup, 0,
+            ...rectWorkgroupSizes
         );
 
         baseRenderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();

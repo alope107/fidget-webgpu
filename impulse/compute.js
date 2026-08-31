@@ -49,34 +49,24 @@ struct Manifold {
         for(var i = 0u; i < arrayLength(&oldRects); i++) {
             let other = &oldRects[i];
             let manifold = rectCollision(*oldRect, *other);
-                        let normal = manifold.collisionNormal;
+            let normal = manifold.collisionNormal;
             let collides = !all(normal == vec2f()) && id != i;
             newRect.overlaps |= select(0u, 1u, collides);
             if(collides) { // TODO: branchless?
-                let j = calcJ(*oldRect, *other, normal);
-                var force = -j * oldRect.invMass * normal;
-                if(length(force) > 1) {
-                    force /= length(force);
-                }
-                newRect.velocity += force;
-
-                let percent = 0.2;
-                let slop = 0.03;
-
-                // Allow a bit of penetration to avoid jitter
-                let depth = max(manifold.penetrationDepth - slop, 0.0);
-
-                let correction = (depth / (newRect.invMass + other.invMass)) * percent * normal;
-                // Directly correct position - not going through velocity
-                newRect.center -= newRect.invMass * correction;
+                resolveCollision(newRect, other, manifold);
             }
-            //newRect.overlaps |= select(0u, 1u, rectOverlaps(oldRect, other) && id != i);
         }
 
-        // for(var i = 0u; i < arrayLength(&oldCircles); i++) {
-        //     let circle = &oldCircles[i];
-        //     newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
-        // }
+        for(var i = 0u; i < arrayLength(&oldCircles); i++) {
+            let circle = &oldCircles[i];
+            var manifold = rectCircleCollision(*newRect, *circle);
+            let normal = manifold.collisionNormal;
+            let collides = !all(normal == vec2f()) && id != i;
+            //manifold.collisionNormal = -manifold.collisionNormal;
+            if(collides) { // TODO: branchless?
+                resolveCollision(newRect, circle, manifold);
+            }
+        }
         pointerBoop(newRect);
 
         newRect.velocity += uniforms.gravity;
@@ -137,15 +127,27 @@ fn calcJ(p1 : Phys, p2: Phys, normal : vec2f) -> f32 {
     ); // do not apply impulse if they are already separating
 }
 
+// Firefox doesn't allow for unrestricted pointers. Going to keep as-is for now,
+// will perhaps pass by array id later. Sucks.  
+// Only resolves for obj, not other
+fn resolveCollision(obj: ptr<storage, Phys, read_write>, other: ptr<storage, Phys, read_write>, manifold: Manifold) {
+    let normal = manifold.collisionNormal;
+    let j = calcJ(*obj, *other, normal);
+    var force = -j * obj.invMass * normal;
+    if(length(force) > 1) {
+        force /= length(force);
+    }
+    obj.velocity += force;
 
-// Firefox complains about these pointers :'(
-// Argument 'r1' at index 0 is a pointer of space Storage { access: StorageAccess(LOAD | STORE) }, which can't be passed into functions.
-// ..should prob give up on using pointer here
-fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_write>) -> bool {
-    return !(r1.center.x + r1.halfDim.x < r2.center.x - r2.halfDim.x) &&
-           !(r2.center.x + r2.halfDim.x < r1.center.x - r1.halfDim.x) &&
-           !(r1.center.y - r1.halfDim.y > r2.center.y + r2.halfDim.y) &&
-           !(r2.center.y - r2.halfDim.y > r1.center.y + r1.halfDim.y);
+    let percent = 0.2;
+    let slop = 0.03;
+
+    // Allow a bit of penetration to avoid jitter
+    let depth = max(manifold.penetrationDepth - slop, 0.0);
+
+    let correction = (depth / (obj.invMass + other.invMass)) * percent * normal;
+    // Directly correct position - not going through velocity
+    obj.center -= obj.invMass * correction;
 }
 
 // TODO: better workgroup size UPDATE THE GLOBAL INDEX CALC IF CHANGED
@@ -178,29 +180,21 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
             let collides = !all(normal == vec2f()) && id != i;
             newCircle.overlaps |= select(0u, 1u, collides);
             if(collides) { // TODO: branchless?
-                let j = calcJ(*oldCircle, *other, normal);
-                var force = -j * oldCircle.invMass * normal;
-                if(length(force) > 1) {
-                    force /= length(force);
-                }
-                newCircle.velocity += force;
-
-                let percent = 0.2;
-                let slop = 0.03;
-
-                // Allow a bit of penetration to avoid jitter
-                let depth = max(manifold.penetrationDepth - slop, 0.0);
-
-                let correction = (depth / (newCircle.invMass + other.invMass)) * percent * normal;
-                // Directly correct position - not going through velocity
-                newCircle.center -= newCircle.invMass * correction;
+                resolveCollision(newCircle, other, manifold);
             }
         }
 
-        // for(var i = 0u; i < arrayLength(&oldRects); i++) {
-        //     let rect = &oldRects[i];
-        //     newCircle.overlaps |= select(0u, 1u, rectCircleOverlaps(rect, oldCircle));
-        // }
+        for(var i = 0u; i < arrayLength(&oldRects); i++) {
+            let rect = &oldRects[i];
+            var manifold = rectCircleCollision(*rect, *newCircle);
+            let normal = manifold.collisionNormal;
+            let collides = !all(normal == vec2f()) && id != i;
+            manifold.collisionNormal = -manifold.collisionNormal;
+            newCircle.overlaps |= select(0u, 1u, collides);
+            if(collides) { // TODO: branchless?
+                resolveCollision(newCircle, rect, manifold);
+            }
+        }
 
         
         pointerBoop(newCircle);
@@ -221,7 +215,6 @@ fn rectCollision(r1 :Phys, r2:Phys) -> Manifold {
 
     let overlap = r1.halfDim + r2.halfDim - abs(delta);
 
-    //todo: branchless
     let overlappingMask = select(0., 1., overlap.x > 0 && overlap.y > 0);
     let dimensionMask = select( // choose axis of least penetration
         vec2f(1., 0.),
@@ -255,33 +248,40 @@ fn circleCollision(c1 :Phys, c2:Phys) -> Manifold {
     return Manifold(vec2f(), 0);
 }
 
-// Adapted from https://stackoverflow.com/questions/401847/circle-rectangle-collision-detection-intersection
-// fn rectCircleOverlaps(r : ptr<storage, Rect, read_write>, c: ptr<storage, Circle, read_write>) -> bool {
-//     // TODO: cache rect center amnd dims?
-//     let rHalfDims = abs(vec2f(
-//         (r.bottomRight.x - r.topLeft.x) /2,
-//         (r.topLeft.y - r.bottomRight.y) /2
-//     ));
-//     let rCenter = vec2f(
-//         r.topLeft.x + rHalfDims.x,
-//         r.bottomRight.y - rHalfDims.y
-//     );
+fn rectCircleCollision(rect: Phys, circle: Phys) -> Manifold {
+    let delta = circle.center - rect.center;
+    // clamp to edges of rect
+    var closest = vec2f(
+        clamp(delta.x, -rect.halfDim.x, rect.halfDim.x),
+        clamp(delta.y, -rect.halfDim.y, rect.halfDim.y)
+    );
 
-//     let delta = abs(c.center - rCenter);
+    // TODO: branchless
+    var inside = false;
 
-//     if(delta.x > rHalfDims.x + c.radius ||
-//        delta.y >  rHalfDims.y + c.radius) {
-//         return false;
-//     }
+    // circle is inside rect
+    if(all(delta == closest)) {
+        inside = true;
+        // TODO: can be done with masks
+        if(abs(delta.x) < abs(delta.y)) {
+            closest.x = select(-rect.halfDim.x, rect.halfDim.x, closest.x > 0);
+        } else {
+            closest.y = select(-rect.halfDim.y, rect.halfDim.y, closest.y > 0);
+        }
+    }
 
-//     if(delta.x < rHalfDims.x ||
-//        delta.y <  rHalfDims.y) {
-//         return true;
-//     }
+    let normal = delta - closest;
 
-//     let corner = delta - rHalfDims;
-//     let squaredCorner = dot(corner, corner);
+    let lengthSquared = dot(normal, normal);
+    if(lengthSquared > (circle.halfDim.x * circle.halfDim.x) && !inside) {
+        return Manifold(vec2(), 0);
+    }
 
-//     return squaredCorner < pow(c.radius, 2);
-// }
+    let len = sqrt(lengthSquared);//length(normal);
+    return Manifold(
+        normal * select(1., -1., inside),
+        circle.halfDim.x - len
+    );
+}
+
 `;

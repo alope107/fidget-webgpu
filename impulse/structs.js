@@ -85,7 +85,11 @@ export const physStruct = (() => {
         return objs;
     };
     const randJSRects = (opts) => randPhys(opts, ([halfWidth, halfHeight]) => halfWidth * halfHeight * 4);
-    const randJSCircles = (opts) => randPhys(opts, ([halfWidth, halfHeight]) => Math.PI * halfWidth**2);
+    const randJSCircles = (opts) => 
+        randPhys(opts, 
+            ([halfWidth, halfHeight]) => Math.PI * halfWidth**2,
+            true
+        );
     return {
         code,
         byteCount,
