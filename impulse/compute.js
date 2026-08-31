@@ -148,7 +148,7 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
 
                 let correction = (depth / (newCircle.invMass + other.invMass)) * percent * normal;
                 // Directly correct position - not going through velocity
-                // newCircle.center -= newCircle.invMass * correction;
+                newCircle.center -= newCircle.invMass * correction;
             }
         }
 
