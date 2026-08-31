@@ -34,15 +34,15 @@ struct Manifold {
         // TODO: Automatic binding creation
         _ = oldCircles[0].radius;
         _ = newCircles[0].radius;
-        _ = oldRects[0].topLeft;
-        _ = newRects[0].topLeft;
+        _ = oldRects[0].center;
+        _ = newRects[0].center;
         _ = uniforms.pointerHeld;
 
         let newRect = &newRects[id];
         let oldRect = &oldRects[id];
 
-        newRect.topLeft = oldRect.topLeft;
-        newRect.bottomRight = oldRect.bottomRight;
+        newRect.center = oldRect.center;
+        newRect.halfDim = oldRect.halfDim;
         newRect.phys.velocity = oldRect.phys.velocity;
 
 
@@ -53,12 +53,11 @@ struct Manifold {
             newRect.overlaps |= select(0u, 1u, rectOverlaps(oldRect, other) && id != i);
         }
 
-        for(var i = 0u; i < arrayLength(&oldCircles); i++) {
-            let circle = &oldCircles[i];
-            newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
-        }
-        newRect.topLeft += newRect.phys.velocity;
-        newRect.bottomRight += newRect.phys.velocity;
+        // for(var i = 0u; i < arrayLength(&oldCircles); i++) {
+        //     let circle = &oldCircles[i];
+        //     newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
+        // }
+        newRect.center += newRect.phys.velocity;
 }
 
 // to pointer or not to pointer
@@ -78,10 +77,10 @@ fn calcJ(p1 : Phys, p2 : Phys, normal : vec2f) -> f32 {
 // Argument 'r1' at index 0 is a pointer of space Storage { access: StorageAccess(LOAD | STORE) }, which can't be passed into functions.
 // ..should prob give up on using pointer here
 fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read_write>) -> bool {
-    return !(r1.bottomRight.x < r2.topLeft.x) &&
-           !(r2.bottomRight.x < r1.topLeft.x) &&
-           !(r1.bottomRight.y < r2.topLeft.y) &&
-           !(r2.bottomRight.y < r1.topLeft.y);
+    return !(r1.center.x + r1.halfDim.x < r2.center.x - r2.halfDim.x) &&
+           !(r2.center.x + r2.halfDim.x < r1.center.x - r1.halfDim.x) &&
+           !(r1.center.y - r1.halfDim.y > r2.center.y + r2.halfDim.y) &&
+           !(r2.center.y - r2.halfDim.y > r1.center.y + r1.halfDim.y);
 }
 
 // TODO: better workgroup size UPDATE THE GLOBAL INDEX CALC IF CHANGED
@@ -96,8 +95,8 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         // Just making sure we don't lose our bindings
         _ = oldCircles[0].radius;
         _ = newCircles[0].radius;
-        _ = oldRects[0].topLeft;
-        _ = newRects[0].topLeft;
+        _ = oldRects[0].center;
+        _ = newRects[0].center;
         _ = uniforms.pointerHeld;
 
         let newCircle = &newCircles[id];
@@ -133,10 +132,10 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
             }
         }
 
-        for(var i = 0u; i < arrayLength(&oldRects); i++) {
-            let rect = &oldRects[i];
-            newCircle.overlaps |= select(0u, 1u, rectCircleOverlaps(rect, oldCircle));
-        }
+        // for(var i = 0u; i < arrayLength(&oldRects); i++) {
+        //     let rect = &oldRects[i];
+        //     newCircle.overlaps |= select(0u, 1u, rectCircleOverlaps(rect, oldCircle));
+        // }
 
         
         let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
@@ -179,6 +178,10 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         }
 }
 
+// fn rectCollision(r1 : Rect, r2: Rect) -> Manifold {
+//     let vec2 n = r1.phys.
+// }
+
 fn circleCollision(c1 : Circle, c2: Circle) -> Manifold {
     let delta = c2.center - c1.center;
     let squaredDist = dot(delta, delta);
@@ -195,32 +198,32 @@ fn circleCollision(c1 : Circle, c2: Circle) -> Manifold {
 }
 
 // Adapted from https://stackoverflow.com/questions/401847/circle-rectangle-collision-detection-intersection
-fn rectCircleOverlaps(r : ptr<storage, Rect, read_write>, c: ptr<storage, Circle, read_write>) -> bool {
-    // TODO: cache rect center amnd dims?
-    let rHalfDims = abs(vec2f(
-        (r.bottomRight.x - r.topLeft.x) /2,
-        (r.topLeft.y - r.bottomRight.y) /2
-    ));
-    let rCenter = vec2f(
-        r.topLeft.x + rHalfDims.x,
-        r.bottomRight.y - rHalfDims.y
-    );
+// fn rectCircleOverlaps(r : ptr<storage, Rect, read_write>, c: ptr<storage, Circle, read_write>) -> bool {
+//     // TODO: cache rect center amnd dims?
+//     let rHalfDims = abs(vec2f(
+//         (r.bottomRight.x - r.topLeft.x) /2,
+//         (r.topLeft.y - r.bottomRight.y) /2
+//     ));
+//     let rCenter = vec2f(
+//         r.topLeft.x + rHalfDims.x,
+//         r.bottomRight.y - rHalfDims.y
+//     );
 
-    let delta = abs(c.center - rCenter);
+//     let delta = abs(c.center - rCenter);
 
-    if(delta.x > rHalfDims.x + c.radius ||
-       delta.y >  rHalfDims.y + c.radius) {
-        return false;
-    }
+//     if(delta.x > rHalfDims.x + c.radius ||
+//        delta.y >  rHalfDims.y + c.radius) {
+//         return false;
+//     }
 
-    if(delta.x < rHalfDims.x ||
-       delta.y <  rHalfDims.y) {
-        return true;
-    }
+//     if(delta.x < rHalfDims.x ||
+//        delta.y <  rHalfDims.y) {
+//         return true;
+//     }
 
-    let corner = delta - rHalfDims;
-    let squaredCorner = dot(corner, corner);
+//     let corner = delta - rHalfDims;
+//     let squaredCorner = dot(corner, corner);
 
-    return squaredCorner < pow(c.radius, 2);
-}
+//     return squaredCorner < pow(c.radius, 2);
+// }
 `;

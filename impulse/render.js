@@ -22,10 +22,10 @@ struct VertexOutput {
     _ = uniforms.pointerHeld;
     let rect = rects[instanceIdx];
     let points = array(
-        rect.topLeft,
-        vec2f(rect.topLeft.x, rect.bottomRight.y),
-        vec2f(rect.bottomRight.x, rect.topLeft.y),
-        rect.bottomRight
+        rect.center - rect.halfDim,
+        vec2f(rect.center.x + rect.halfDim.x, rect.center.y - rect.halfDim.y),
+        vec2f(rect.center.x - rect.halfDim.x, rect.center.y + rect.halfDim.y),
+        rect.center + rect.halfDim
     );
     let transformedPosition = uniforms.cameraMat * vec3f(points[vertexIdx], 1);
     return VertexOutput(
@@ -38,7 +38,7 @@ const UNIT_CIRCLE_POINTS = ${unitCirclePointsWGSL(polysPerCircle)}
 
 @vertex fn drawCircle(@builtin(vertex_index) vertexIdx : u32, 
                     @builtin(instance_index) instanceIdx : u32) -> VertexOutput {
-    _ = rects[0].topLeft;
+    _ = rects[0].center;
     let circle = circles[instanceIdx];
     let r = select(0., circle.radius, (vertexIdx & 1) == 0); // Alternate between edges and center
 

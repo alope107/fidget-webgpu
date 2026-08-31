@@ -56,8 +56,8 @@ export const physStruct = (() => {
 export const rectStruct = (() => { 
     const code = /* wgsl */`
         struct Rect {
-            topLeft: vec2f, // 8 bytes
-            bottomRight: vec2f, // 8 bytes
+            center: vec2f, // 8 bytes
+            halfDim: vec2f, // 8 bytes
             phys: Phys, // 16 bytes
             overlaps: u32, // 4 bytes
             // pad 4 bytes
@@ -71,8 +71,8 @@ export const rectStruct = (() => {
         return {
             data,
             views: {
-                topLeftView: new Float32Array(data, 0),
-                bottomRightView: new Float32Array(data, 8),
+                centerView: new Float32Array(data, 0),
+                halfDimView: new Float32Array(data, 8),
                 physView: new Float32Array(data, 16), // Float32 makes sens for now... but what if phys had both f32 and u32????
                 overlapsView: new Uint32Array(data, 32),
             },
@@ -81,10 +81,10 @@ export const rectStruct = (() => {
     };
     const createFilledArray = (rectData) => {
         const data = createEmptyArray(rectData.length);
-        const {topLeftView, bottomRightView, physView} = data.views;
-        rectData.forEach(({topLeft, bottomRight, velocity, phys}, i) => {
-            topLeftView.set(topLeft, i*floatCount);
-            bottomRightView.set(bottomRight, i*floatCount);
+        const {centerView, halfDimView, physView} = data.views;
+        rectData.forEach(({center, halfDim, phys}, i) => {
+            centerView.set(center, i*floatCount);
+            halfDimView.set(halfDim, i*floatCount);
             physView.set(phys, i*floatCount)
             // overlaps set to 0
             // pad set to 0
@@ -98,15 +98,14 @@ export const rectStruct = (() => {
         const rects = [];
 
         for(let i = 0; i < count; i++) {
-            const topLeft = [randRange(-wall, wall), randRange(-wall, wall)];
-            const w = randRange(minWidth, maxWidth), h = randRange(minWidth, maxWidth);
-            const bottomRight = [topLeft[0] + w, topLeft[1] + h];
+            const center = [randRange(-wall, wall), randRange(-wall, wall)];
+            const halfDim = [randRange(minWidth, maxWidth)/2, randRange(minWidth, maxWidth)/2];
             const velocity = [randRange(-maxVelComp*wall, maxVelComp*wall), randRange(-maxVelComp*wall, maxVelComp*wall)];
             rects.push({
-                topLeft,
-                bottomRight,
+                center,
+                halfDim,
                 phys: physStruct.create({
-                    mass: density*w*h,
+                    mass: density * halfDim[0]*halfDim[1]*4, // density * area
                     restitution,
                     velocity
                 })
