@@ -60,24 +60,29 @@ struct Manifold {
 
         newRect.center += newRect.velocity;
 
-        if(newRect.center.y < -wall + newRect.halfDim.y) {
-            newRect.center.y = -wall + newRect.halfDim.y;
-            newRect.velocity.y *= -newRect.restitution;
-        }
-        if(newRect.center.y > wall - newRect.halfDim.y) {
-            newRect.center.y = wall - newRect.halfDim.y;
-            newRect.velocity.y *= -newRect.restitution;
-        }
-        if(newRect.center.x < -wall + newRect.halfDim.x) {
-            newRect.center.x = -wall + newRect.halfDim.x;
-            newRect.velocity.x *= -newRect.restitution;
-        }
-        if(newRect.center.x > wall - newRect.halfDim.x) {
-            newRect.center.x = wall - newRect.halfDim.x;
-            newRect.velocity.x *= -newRect.restitution;
-        }
+        wallBounce(newRect);
+}
 
 
+fn wallBounce(obj : ptr<storage, Phys, read_write>) {
+    let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
+
+    if(obj.center.y < -wall + obj.halfDim.y) {
+        obj.center.y = -wall + obj.halfDim.y;
+        obj.velocity.y *= -obj.restitution;
+    }
+    if(obj.center.y > wall - obj.halfDim.y) {
+        obj.center.y = wall - obj.halfDim.y;
+        obj.velocity.y *= -obj.restitution;
+    }
+    if(obj.center.x < -wall + obj.halfDim.x) {
+        obj.center.x = -wall + obj.halfDim.x;
+        obj.velocity.x *= -obj.restitution;
+    }
+    if(obj.center.x > wall - obj.halfDim.x) {
+        obj.center.x = wall - obj.halfDim.x;
+        obj.velocity.x *= -obj.restitution;
+    }
 }
 
 // to pointer or not to pointer
@@ -179,23 +184,8 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
 
         newCircle.center += newCircle.velocity;
 
-        newCircle.overlaps = 0;
-        if(newCircle.center.y < -wall + newCircle.halfDim.x) {
-            newCircle.center.y = -wall + newCircle.halfDim.x;
-            newCircle.velocity.y *= -newCircle.restitution;
-        }
-        if(newCircle.center.y > wall - newCircle.halfDim.x) {
-            newCircle.center.y = wall - newCircle.halfDim.x;
-            newCircle.velocity.y *= -newCircle.restitution;
-        }
-        if(newCircle.center.x < -wall + newCircle.halfDim.x) {
-            newCircle.center.x = -wall + newCircle.halfDim.x;
-            newCircle.velocity.x *= -newCircle.restitution;
-        }
-        if(newCircle.center.x > wall - newCircle.halfDim.x) {
-            newCircle.center.x = wall - newCircle.halfDim.x;
-            newCircle.velocity.x *= -newCircle.restitution;
-        }
+        wallBounce(newCircle);
+        newCircle.overlaps = 0;// Hack to temporarily turn off collision coloring, should really be config arg
 }
 
 fn rectCollision(r1 :Phys, r2:Phys) -> Manifold {
