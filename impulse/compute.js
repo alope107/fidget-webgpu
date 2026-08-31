@@ -57,7 +57,29 @@ struct Manifold {
         //     let circle = &oldCircles[i];
         //     newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
         // }
+
+        let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
+
         newRect.center += newRect.phys.velocity;
+
+        if(newRect.center.y < -wall + newRect.halfDim.y) {
+            newRect.center.y = -wall + newRect.halfDim.y;
+            newRect.phys.velocity.y *= -newRect.phys.restitution;
+        }
+        if(newRect.center.y > wall - newRect.halfDim.y) {
+            newRect.center.y = wall - newRect.halfDim.y;
+            newRect.phys.velocity.y *= -newRect.phys.restitution;
+        }
+        if(newRect.center.x < -wall + newRect.halfDim.x) {
+            newRect.center.x = -wall + newRect.halfDim.x;
+            newRect.phys.velocity.x *= -newRect.phys.restitution;
+        }
+        if(newRect.center.x > wall - newRect.halfDim.x) {
+            newRect.center.x = wall - newRect.halfDim.x;
+            newRect.phys.velocity.x *= -newRect.phys.restitution;
+        }
+
+
 }
 
 // to pointer or not to pointer
@@ -178,9 +200,29 @@ fn rectOverlaps(r1 : ptr<storage, Rect, read_write>, r2: ptr<storage, Rect, read
         }
 }
 
-// fn rectCollision(r1 : Rect, r2: Rect) -> Manifold {
-//     let vec2 n = r1.phys.
-// }
+fn rectCollision(r1 : Rect, r2: Rect) -> Manifold {
+    let delta = r2.center - r1.center;
+
+    let overlap = r1.halfDim + r2.halfDim - abs(delta);
+
+    //todo: branchless
+    let overlappingMask = select(0., 1., overlap.x > 0 && overlap.y > 0);
+    let dimensionMask = select( // choose axis of least penetration
+        vec2f(0., 1.),
+        vec2f(1., 0.),
+        overlap.x > overlap.y
+    );
+    let direction = vec2f(
+        select(1., -1., overlap.x > 0),
+        select(1., -1., overlap.y > 0),
+    );
+    // TODO: finish thinking about penetration
+    let penetration =1.;// TODO TODO TODO
+    return Manifold(
+        overlappingMask * dimensionMask * direction,
+        penetration
+    );
+}
 
 fn circleCollision(c1 : Circle, c2: Circle) -> Manifold {
     let delta = c2.center - c1.center;
