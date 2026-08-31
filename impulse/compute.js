@@ -77,6 +77,7 @@ struct Manifold {
         //     let circle = &oldCircles[i];
         //     newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
         // }
+        pointerBoop(newRect);
 
         newRect.velocity += uniforms.gravity;
         newRect.center += newRect.velocity;
@@ -105,6 +106,23 @@ fn wallBounce(obj : ptr<storage, Phys, read_write>) {
         obj.center.x = wall - obj.halfDim.x;
         obj.velocity.x *= -obj.restitution;
     }
+}
+
+fn pointerBoop(obj : ptr<storage, Phys, read_write>) {
+    let wall = 1.0/uniforms.invWorldScale; // TODO: don't scale off wall
+
+    // TODO: compute this once, not once per thread
+    let pointerLoc = (uniforms.invCameraMat * vec3(uniforms.pointerLoc, 1)).xy;
+
+    let pointerRadius=.05;
+    if(uniforms.pointerHeld > 0) {
+        let delta = obj.center - (pointerLoc*wall); // todo: don't scale based off of wall
+        let deltaLen = length(delta);
+        if(deltaLen < obj.halfDim.x+(pointerRadius*wall)) {
+            obj.velocity += delta/6; // Todo: do by density?
+        }
+    }
+
 }
 
 // to pointer or not to pointer
@@ -185,19 +203,7 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
         // }
 
         
-        let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
-
-        // TODO: compute this once, not once per thread
-        let pointerLoc = (uniforms.invCameraMat * vec3(uniforms.pointerLoc, 1)).xy;
-
-        let pointerRadius=.05;
-        if(uniforms.pointerHeld > 0) {
-            let delta = newCircle.center - (pointerLoc*wall); // todo: don't scale based off of wall
-            let deltaLen = length(delta);
-            if(deltaLen < newCircle.halfDim.x+(pointerRadius*wall)) {
-                newCircle.velocity += delta/6;
-            }
-        }
+        pointerBoop(newCircle);
 
         newCircle.velocity += uniforms.gravity;
 
