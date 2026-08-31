@@ -48,7 +48,29 @@ struct Manifold {
         newRect.overlaps = 0;
         for(var i = 0u; i < arrayLength(&oldRects); i++) {
             let other = &oldRects[i];
-            newRect.overlaps |= select(0u, 1u, rectOverlaps(oldRect, other) && id != i);
+            let manifold = rectCollision(*oldRect, *other);
+                        let normal = manifold.collisionNormal;
+            let collides = !all(normal == vec2f()) && id != i;
+            newRect.overlaps |= select(0u, 1u, collides);
+            if(collides) { // TODO: branchless?
+                let j = calcJ(*oldRect, *other, normal);
+                var force = -j * oldRect.invMass * normal;
+                if(length(force) > 1) {
+                    force /= length(force);
+                }
+                newRect.velocity += force;
+
+                let percent = 0.2;
+                let slop = 0.03;
+
+                // Allow a bit of penetration to avoid jitter
+                let depth = max(manifold.penetrationDepth - slop, 0.0);
+
+                let correction = (depth / (newRect.invMass + other.invMass)) * percent * normal;
+                // Directly correct position - not going through velocity
+                newRect.center -= newRect.invMass * correction;
+            }
+            //newRect.overlaps |= select(0u, 1u, rectOverlaps(oldRect, other) && id != i);
         }
 
         // for(var i = 0u; i < arrayLength(&oldCircles); i++) {
@@ -56,9 +78,9 @@ struct Manifold {
         //     newRect.overlaps |= select(0u, 1u, rectCircleOverlaps(oldRect, circle));
         // }
 
-        let wall = 1.0/uniforms.invWorldScale; // TODO: swap to wallCorner
-
+        newRect.velocity += uniforms.gravity;
         newRect.center += newRect.velocity;
+        newRect.overlaps = 0;
 
         wallBounce(newRect);
 }
@@ -189,26 +211,26 @@ fn rectOverlaps(r1 : ptr<storage,Phys, read_write>, r2: ptr<storage,Phys, read_w
 }
 
 fn rectCollision(r1 :Phys, r2:Phys) -> Manifold {
-    let delta = r2.center - r1.center;
+    let delta = r1.center - r2.center;
 
     let overlap = r1.halfDim + r2.halfDim - abs(delta);
 
     //todo: branchless
     let overlappingMask = select(0., 1., overlap.x > 0 && overlap.y > 0);
     let dimensionMask = select( // choose axis of least penetration
-        vec2f(0., 1.),
         vec2f(1., 0.),
+        vec2f(0., 1.),
         overlap.x > overlap.y
     );
     let direction = vec2f(
-        select(1., -1., overlap.x > 0),
-        select(1., -1., overlap.y > 0),
+        select(1., -1., delta.x > 0),
+        select(1., -1., delta.y > 0),
     );
-    // TODO: finish thinking about penetration
-    let penetration =1.;// TODO TODO TODO
+
+    let penetration = select(overlap.x, overlap.y, overlap.x > overlap.y);
     return Manifold(
         overlappingMask * dimensionMask * direction,
-        penetration
+        penetration * overlappingMask
     );
 }
 
