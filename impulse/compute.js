@@ -59,7 +59,7 @@ struct Manifold {
 
         for(var i = 0u; i < arrayLength(&oldCircles); i++) {
             let circle = &oldCircles[i];
-            var manifold = rectCircleCollision(*newRect, *circle);
+            var manifold = rectCircleCollision(newRect, circle);
             let normal = manifold.collisionNormal;
             let collides = !all(normal == vec2f()) && id != i;
             //manifold.collisionNormal = -manifold.collisionNormal;
@@ -139,7 +139,7 @@ fn resolveCollision(obj: ptr<storage, Phys, read_write>, other: ptr<storage, Phy
     }
     obj.velocity += force;
 
-    let percent = 0.2;
+    let percent = 0.4;
     let slop = 0.03;
 
     // Allow a bit of penetration to avoid jitter
@@ -175,7 +175,7 @@ fn resolveCollision(obj: ptr<storage, Phys, read_write>, other: ptr<storage, Phy
         newCircle.overlaps = 0;
         for(var i = 0u; i < arrayLength(&oldCircles); i++) {
             let other = &oldCircles[i];
-            let manifold = circleCollision(*oldCircle, *other);
+            let manifold = circleCollision(oldCircle, other);
             let normal = manifold.collisionNormal;
             let collides = !all(normal == vec2f()) && id != i;
             newCircle.overlaps |= select(0u, 1u, collides);
@@ -186,7 +186,7 @@ fn resolveCollision(obj: ptr<storage, Phys, read_write>, other: ptr<storage, Phy
 
         for(var i = 0u; i < arrayLength(&oldRects); i++) {
             let rect = &oldRects[i];
-            var manifold = rectCircleCollision(*rect, *newCircle);
+            var manifold = rectCircleCollision(rect, newCircle);
             let normal = manifold.collisionNormal;
             let collides = !all(normal == vec2f()) && id != i;
             manifold.collisionNormal = -manifold.collisionNormal;
@@ -233,7 +233,7 @@ fn rectCollision(r1 :Phys, r2:Phys) -> Manifold {
     );
 }
 
-fn circleCollision(c1 :Phys, c2:Phys) -> Manifold {
+fn circleCollision(c1: ptr<storage, Phys, read_write>, c2: ptr<storage, Phys, read_write>) -> Manifold {
     let delta = c2.center - c1.center;
     let squaredDist = dot(delta, delta);
     let touchingDist = c1.halfDim.x + c2.halfDim.x;
@@ -248,7 +248,7 @@ fn circleCollision(c1 :Phys, c2:Phys) -> Manifold {
     return Manifold(vec2f(), 0);
 }
 
-fn rectCircleCollision(rect: Phys, circle: Phys) -> Manifold {
+fn rectCircleCollision(rect: ptr<storage, Phys, read_write>, circle: ptr<storage, Phys, read_write>) -> Manifold {
     let delta = circle.center - rect.center;
     // clamp to edges of rect
     var closest = vec2f(
@@ -277,9 +277,9 @@ fn rectCircleCollision(rect: Phys, circle: Phys) -> Manifold {
         return Manifold(vec2(), 0);
     }
 
-    let len = sqrt(lengthSquared);//length(normal);
+    let len = sqrt(lengthSquared);
     return Manifold(
-        normal * select(1., -1., inside),
+        select(vec2(), (normal * select(1., -1., inside)) / len, len > 0), 
         circle.halfDim.x - len
     );
 }
