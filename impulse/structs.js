@@ -102,6 +102,39 @@ export const physStruct = (() => {
     };
 })();
 
+export const endpointsStruct = (() => { 
+    const code = /* wgsl */`
+        struct Endpoints {
+            start : u32, // 4 bytes, float transformed to sortable int
+            end : u32,   // 4 bytes, float transformed to sortable int
+            shape : u32, // 4 type of object (circle, rect, etc). Determines which array will be indexed into
+            idx : u32,   // 4 bytes, index in array of circles, rects, etc (could probably be combined with previous and bitmasked, but will keep separate for now)
+    };  
+    `
+    const byteCount = 16;
+    const floatCount = byteCount / 4;
+    const createEmptyArray = (endpointCount) => {
+        const data = new ArrayBuffer(byteCount * endpointCount);
+        return {
+            data,
+            views: {
+                startView: new Float32Array(data, 0),
+                endView: new Float32Array(data, 4),
+                shapeView: new Float32Array(data, 8),
+                idxView: new Float32Array(data, 12),
+            },
+            count: endpointCount
+        };
+    };
+   
+    return {
+        code,
+        byteCount,
+        floatCount,
+        createEmptyArray,
+    };
+})();
+
 
 export const uniformsStruct = (() => { 
     const code = /* wgsl */ `
